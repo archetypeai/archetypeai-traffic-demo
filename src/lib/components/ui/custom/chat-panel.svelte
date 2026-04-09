@@ -6,14 +6,31 @@
 	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
 	import SendIcon from '@lucide/svelte/icons/send';
 	import SpinnerIcon from '@lucide/svelte/icons/loader';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import CarIcon from '@lucide/svelte/icons/car';
+	import EyeIcon from '@lucide/svelte/icons/eye';
+	import BarChartIcon from '@lucide/svelte/icons/bar-chart-3';
+	import { marked } from 'marked';
 
-	/**
-	 * @typedef {Object} ChatMessage
-	 * @property {string} id
-	 * @property {'user' | 'assistant'} role
-	 * @property {string} text
-	 * @property {number} timestamp
-	 */
+	marked.setOptions({ breaks: true, gfm: true });
+
+	const QUICK_PROMPTS = [
+		{
+			label: 'Conditions',
+			icon: CarIcon,
+			query: 'Describe the current traffic conditions on US-101 at Spencer Ave. How is the flow, are there any congestion or incidents visible, and what is the visibility like?'
+		},
+		{
+			label: 'Commute',
+			icon: EyeIcon,
+			query: 'I\'m about to drive through this section of US-101. What should I expect? Any delays, construction, or hazards visible on the camera?'
+		},
+		{
+			label: 'Summary',
+			icon: BarChartIcon,
+			query: 'Give a brief summary of what you see on the camera: vehicle density, speed of traffic, weather conditions, and anything notable.'
+		}
+	];
 
 	let {
 		messages = $bindable([]),
@@ -56,12 +73,52 @@
 	class={cn('flex max-h-full flex-col gap-3 overflow-hidden', className)}
 	{...restProps}
 >
+	{#if messages.length > 0}
+		<div class="flex items-center justify-between">
+			<div class="flex flex-wrap gap-1.5">
+				{#each QUICK_PROMPTS as prompt}
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={disabled || loading}
+						onclick={() => onsend?.(prompt.query)}
+					>
+						<prompt.icon class="size-3" aria-hidden="true" />
+						{prompt.label}
+					</Button>
+				{/each}
+			</div>
+			<Button
+				variant="ghost"
+				size="icon-sm"
+				aria-label="Clear chat"
+				onclick={() => (messages = [])}
+			>
+				<Trash2Icon class="size-3.5" />
+			</Button>
+		</div>
+	{/if}
 	<ScrollArea class="min-h-0 flex-1">
 		<div class="flex flex-col gap-3 pr-3">
 			{#if messages.length === 0}
-				<p class="text-muted-foreground py-8 text-center text-sm">
-					Ask Newton about the traffic feed
-				</p>
+				<div class="flex flex-col items-center gap-3 py-6">
+					<p class="text-muted-foreground text-center text-sm">
+						Ask Newton about the traffic feed
+					</p>
+					<div class="flex flex-wrap justify-center gap-1.5">
+						{#each QUICK_PROMPTS as prompt}
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={disabled || loading}
+								onclick={() => onsend?.(prompt.query)}
+							>
+								<prompt.icon class="size-3" aria-hidden="true" />
+								{prompt.label}
+							</Button>
+						{/each}
+					</div>
+				</div>
 			{:else}
 				{#each messages as msg (msg.id)}
 					<div
@@ -72,7 +129,13 @@
 								: 'bg-atai-neutral/10 text-foreground mr-8 border border-atai-neutral/20'
 						)}
 					>
-						<p class="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+						{#if msg.role === 'assistant'}
+							<div class="prose-sm prose-invert leading-relaxed [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:my-0.5 [&_strong]:text-foreground">
+								{@html marked(msg.text)}
+							</div>
+						{:else}
+							<p class="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+						{/if}
 						<span class="text-[10px] opacity-50">
 							{new Date(msg.timestamp).toLocaleTimeString('en-US', {
 								hour12: false,
