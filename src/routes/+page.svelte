@@ -38,15 +38,6 @@
 	function inferStatus(text) {
 		const lower = text.toLowerCase();
 
-		// Check for positive traffic signals first
-		const positivePatterns = [
-			/traffic\s+(is|appears?|seems?|looks?)\s+(light|smooth|normal|moderate|free)/,
-			/\b(light|smooth|free[- ]?flowing|moderate)\s+traffic\b/,
-			/\bflow\s+(is|appears?)\s+(smooth|normal|good|steady)\b/,
-			/\bno\s+(visible\s+)?(incidents?|accidents?|congestion|delays?|hazards?)\b/,
-			/\b(clear|free)\s+of\s+(congestion|incidents?|accidents?)\b/
-		];
-
 		const negativePatterns = [
 			/traffic\s+(is|appears?|seems?|looks?)\s+(heavy|stopped|dense|slow)/,
 			/\b(heavy|dense|slow|stopped)\s+traffic\b/,
@@ -64,11 +55,8 @@
 			}
 		}
 
-		for (const pat of positivePatterns) {
-			if (pat.test(lower)) return 'good';
-		}
-
-		return 'neutral';
+		// No negative signals found — normal traffic
+		return 'good';
 	}
 
 	async function captureAndAnalyze() {

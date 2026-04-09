@@ -2,7 +2,6 @@
 	import { cn } from '$lib/utils.js';
 	import BackgroundCard from '$lib/components/ui/patterns/background-card/index.js';
 	import { Button } from '$lib/components/ui/primitives/button/index.js';
-	import { Input } from '$lib/components/ui/primitives/input/index.js';
 	import { ScrollArea } from '$lib/components/ui/primitives/scroll-area/index.js';
 	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
 	import SendIcon from '@lucide/svelte/icons/send';
@@ -26,13 +25,28 @@
 	} = $props();
 
 	let inputValue = $state('');
+	let textareaRef = $state(null);
+
+	function autoResize() {
+		if (!textareaRef) return;
+		textareaRef.style.height = 'auto';
+		textareaRef.style.height = Math.min(textareaRef.scrollHeight, 120) + 'px';
+	}
 
 	function handleSubmit(e) {
 		e.preventDefault();
 		const text = inputValue.trim();
 		if (!text || loading || disabled) return;
 		inputValue = '';
+		if (textareaRef) textareaRef.style.height = 'auto';
 		onsend?.(text);
+	}
+
+	function handleKeydown(e) {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			handleSubmit(e);
+		}
 	}
 </script>
 
@@ -78,13 +92,21 @@
 		</div>
 	</ScrollArea>
 
-	<form class="flex gap-2" onsubmit={handleSubmit}>
-		<Input
+	<form class="flex items-end gap-2" onsubmit={handleSubmit}>
+		<textarea
+			bind:this={textareaRef}
 			bind:value={inputValue}
+			oninput={autoResize}
+			onkeydown={handleKeydown}
 			placeholder={disabled ? 'Start analysis first...' : 'Ask about the traffic...'}
 			{disabled}
-			class="flex-1"
-		/>
+			rows="1"
+			class={cn(
+				'border-input bg-transparent ring-ring/50 placeholder:text-muted-foreground flex-1 resize-none rounded-xs border px-3 py-2 text-sm outline-none transition-colors',
+				'focus-visible:border-ring focus-visible:ring-[3px]',
+				'disabled:pointer-events-none disabled:opacity-50'
+			)}
+		></textarea>
 		<Button
 			type="submit"
 			size="icon"
