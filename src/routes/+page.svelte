@@ -4,7 +4,6 @@
 	import StatusBadge from '$lib/components/ui/patterns/status-badge/status-badge.svelte';
 	import TrafficFeed from '$lib/components/ui/custom/traffic-feed.svelte';
 	import AnalysisLog from '$lib/components/ui/custom/analysis-log.svelte';
-	import TrafficStatus from '$lib/components/ui/custom/traffic-status.svelte';
 	import ChatPanel from '$lib/components/ui/custom/chat-panel.svelte';
 	import { startSession, analyze, endSession } from '$lib/api/newton.js';
 
@@ -13,7 +12,6 @@
 	let sessionStatus = $state('idle');
 	let feedStatus = $state('connecting');
 	let busy = $state(false);
-	let frameCount = $state(0);
 	let lastUpdate = $state(null);
 	let entries = $state([]);
 	let chatMessages = $state([]);
@@ -55,7 +53,6 @@
 			}
 		}
 
-		// No negative signals found — normal traffic
 		return 'good';
 	}
 
@@ -66,7 +63,6 @@
 		if (!frame) return;
 
 		busy = true;
-		frameCount++;
 
 		try {
 			const result = await analyze(sessionId, frame);
@@ -110,7 +106,6 @@
 			return;
 		}
 
-		// Wait for any in-flight request to finish
 		while (busy) {
 			await new Promise((r) => setTimeout(r, 200));
 		}
@@ -178,6 +173,13 @@
 		feedStatus = 'disconnected';
 		busy = false;
 	}
+
+	function formatTime(ts) {
+		if (!ts) return '--:--:--';
+		return new Date(ts).toLocaleTimeString('en-US', {
+			hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
+		});
+	}
 </script>
 
 {#snippet partnerSnippet()}
@@ -191,6 +193,13 @@
 		<div class="flex items-center gap-3">
 			{#if sessionStatus === 'active'}
 				<StatusBadge label="Newton" percentage={100} initial="N" />
+				<div class="text-muted-foreground hidden items-center gap-3 font-mono text-xs md:flex">
+					<span>N101 @ Spencer Ave</span>
+					<span class="text-border">|</span>
+					<span>{entries.length} analyses</span>
+					<span class="text-border">|</span>
+					<span>{formatTime(lastUpdate)}</span>
+				</div>
 			{/if}
 			{#if !sessionId}
 				<Button variant="default" size="sm" onclick={handleStart}>Start Analysis</Button>
@@ -200,7 +209,7 @@
 		</div>
 	</Menubar>
 
-	<main class="grid grid-cols-2 grid-rows-2 gap-4 overflow-hidden p-4">
+	<main class="grid grid-cols-[1fr_1fr] grid-rows-[1fr_1fr] gap-4 overflow-hidden p-4">
 		<TrafficFeed bind:videoRef status={feedStatus} class="max-h-full" />
 
 		<ChatPanel
@@ -208,17 +217,9 @@
 			loading={chatLoading}
 			disabled={!sessionId}
 			onsend={handleChatSend}
-			class="max-h-full"
+			class="row-span-2 max-h-full"
 		/>
 
 		<AnalysisLog {entries} class="max-h-full" />
-
-		<TrafficStatus
-			{sessionStatus}
-			{frameCount}
-			{lastUpdate}
-			analysisCount={entries.length}
-			class="max-h-full"
-		/>
 	</main>
 </div>
