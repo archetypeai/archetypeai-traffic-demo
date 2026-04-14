@@ -209,7 +209,7 @@
 		</div>
 	</Menubar>
 
-	<main class="grid grid-cols-[1fr_1fr] grid-rows-[1fr_1fr] gap-4 overflow-hidden p-4">
+	<main class="grid grid-cols-[1fr_1fr] grid-rows-[2fr_3fr] gap-4 overflow-hidden p-4">
 		<TrafficFeed bind:videoRef status={feedStatus} class="max-h-full" />
 
 		<ChatPanel
