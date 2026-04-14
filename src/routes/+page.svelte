@@ -210,7 +210,7 @@
 	</Menubar>
 
 	<main class="grid grid-cols-[1fr_1fr] grid-rows-[auto_1fr] gap-4 overflow-hidden p-4">
-		<TrafficFeed bind:videoRef status={feedStatus} class="max-h-[280px]" />
+		<TrafficFeed bind:videoRef status={feedStatus} class="max-h-[360px]" />
 
 		<ChatPanel
 			bind:messages={chatMessages}
