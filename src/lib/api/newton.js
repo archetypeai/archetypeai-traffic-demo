@@ -1,8 +1,10 @@
 // Stateless analysis against Newton C 2.6 via /query — no session lifecycle.
-// Each call is one self-contained request carrying the captured frame.
-export async function analyze(rawBase64, query) {
-	const body = { frame: rawBase64 };
+// Each call sends a short window of frames as one video clip; `rawFps` is the
+// sampling rate the frames were captured at (used to build query_metadata).
+export async function analyze(frames, query, rawFps) {
+	const body = { frames };
 	if (query) body.query = query;
+	if (rawFps) body.rawFps = rawFps;
 
 	const res = await fetch('/api/analyze', {
 		method: 'POST',

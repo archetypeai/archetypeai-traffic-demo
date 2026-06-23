@@ -18,6 +18,11 @@
 	let chatLoading = $state(false);
 	let intervalId = $state(null);
 
+	// Sample a short window from the live feed and send it as one video clip.
+	const WINDOW_FRAMES = 4;
+	const WINDOW_INTERVAL_MS = 750;
+	const WINDOW_FPS = 1000 / WINDOW_INTERVAL_MS;
+
 	function captureFrame(quality = 0.7) {
 		if (!videoRef || !videoRef.videoWidth || !videoRef.videoHeight) return null;
 
@@ -31,6 +36,20 @@
 		ctx.drawImage(videoRef, 0, 0);
 		const dataUri = canvas.toDataURL('image/jpeg', quality);
 		return dataUri.replace(/^data:image\/\w+;base64,/, '');
+	}
+
+	// Grab WINDOW_FRAMES stills spaced WINDOW_INTERVAL_MS apart — a few seconds
+	// of footage the model reasons over as a single clip.
+	async function captureFrames() {
+		const frames = [];
+		for (let i = 0; i < WINDOW_FRAMES; i++) {
+			const frame = captureFrame();
+			if (frame) frames.push(frame);
+			if (i < WINDOW_FRAMES - 1) {
+				await new Promise((r) => setTimeout(r, WINDOW_INTERVAL_MS));
+			}
+		}
+		return frames;
 	}
 
 	function inferStatus(text) {
@@ -59,13 +78,13 @@
 	async function captureAndAnalyze() {
 		if (busy || !running) return;
 
-		const frame = captureFrame();
-		if (!frame) return;
-
 		busy = true;
 
 		try {
-			const result = await analyze(frame);
+			const frames = await captureFrames();
+			if (!frames.length) return;
+
+			const result = await analyze(frames, undefined, WINDOW_FPS);
 			const text = result.analysis;
 			const status = inferStatus(text);
 
@@ -91,28 +110,27 @@
 		];
 		chatLoading = true;
 
-		const frame = captureFrame();
-		if (!frame) {
-			chatMessages = [
-				...chatMessages,
-				{
-					id: crypto.randomUUID(),
-					role: 'assistant',
-					text: 'Could not capture a frame from the video feed.',
-					timestamp: Date.now()
-				}
-			];
-			chatLoading = false;
-			return;
-		}
-
 		while (busy) {
 			await new Promise((r) => setTimeout(r, 200));
 		}
 		busy = true;
 
 		try {
-			const result = await analyze(frame, text);
+			const frames = await captureFrames();
+			if (!frames.length) {
+				chatMessages = [
+					...chatMessages,
+					{
+						id: crypto.randomUUID(),
+						role: 'assistant',
+						text: 'Could not capture frames from the video feed.',
+						timestamp: Date.now()
+					}
+				];
+				return;
+			}
+
+			const result = await analyze(frames, text, WINDOW_FPS);
 			chatMessages = [
 				...chatMessages,
 				{

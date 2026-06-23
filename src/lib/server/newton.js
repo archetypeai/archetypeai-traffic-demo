@@ -24,14 +24,21 @@ function extractText(payload) {
 	return JSON.stringify(payload);
 }
 
-// Single stateless /query call against the C 2.6 fusion model. The frame is
-// attached inline as a base64 image event; the system turn goes in
+// Single stateless /query call against the C 2.6 fusion model. The captured
+// frames are sent as one short video clip: each frame is a `data.base64_img`
+// event, `multi_image: false` marks them as frames (not independent images),
+// and the `query_metadata` triple is required for the frame-list video path —
+// without it the request fails with 400 query_failed. The system turn goes in
 // `instruction_prompt` (the only field C 2.6 honors), the question in `query`.
-export async function analyzeFrame(rawBase64, instruction, query, timeoutMs = 60000) {
+export async function analyzeFrames(frames, instruction, query, rawFps = 1, timeoutMs = 120000) {
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
 	try {
+		const events = frames.map((contents) => ({
+			type: 'data.base64_img',
+			event_data: { contents }
+		}));
 		const res = await fetch(apiUrl('/query'), {
 			method: 'POST',
 			headers: {
@@ -44,12 +51,13 @@ export async function analyzeFrame(rawBase64, instruction, query, timeoutMs = 60
 				file_ids: [],
 				model: MODEL_VERSION,
 				max_new_tokens: 512,
-				events: [
-					{
-						type: 'data.base64_img',
-						event_data: { contents: rawBase64, mime_type: 'image/jpeg' }
-					}
-				]
+				multi_image: false,
+				events,
+				query_metadata: {
+					raw_fps: rawFps,
+					frames_indices: frames.map((_, i) => i),
+					total_num_frames: frames.length
+				}
 			}),
 			signal: controller.signal
 		});
