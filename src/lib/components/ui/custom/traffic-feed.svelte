@@ -29,14 +29,12 @@
 
 		status = 'connecting';
 
+		// 'playing' is the source of truth for "live" — it also re-fires after a
+		// recovered error, flipping the badge back from connecting to live.
 		const onPlaying = () => {
 			status = 'live';
 		};
-		const onError = () => {
-			status = 'error';
-		};
 		videoRef.addEventListener('playing', onPlaying);
-		videoRef.addEventListener('error', onError);
 
 		async function initHls() {
 			const Hls = (await import('hls.js')).default;
@@ -53,10 +51,21 @@
 				hls.on(Hls.Events.MANIFEST_PARSED, () => {
 					videoRef?.play?.().catch(() => {});
 				});
+				// Network/media errors are routine on a long-running live stream —
+				// recover in place rather than latching the badge to ERROR. Only
+				// surface 'error' for genuinely unrecoverable failures.
 				hls.on(Hls.Events.ERROR, (_, data) => {
-					if (data.fatal) {
+					if (!data.fatal) return;
+					if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+						status = 'connecting';
+						hls.startLoad();
+					} else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+						status = 'connecting';
+						hls.recoverMediaError();
+					} else {
 						console.error('HLS fatal error:', data);
 						status = 'error';
+						hls.destroy();
 					}
 				});
 				hlsInstance = hls;
@@ -70,7 +79,6 @@
 
 		return () => {
 			videoRef?.removeEventListener('playing', onPlaying);
-			videoRef?.removeEventListener('error', onError);
 			if (hlsInstance) {
 				hlsInstance.destroy();
 				hlsInstance = null;
