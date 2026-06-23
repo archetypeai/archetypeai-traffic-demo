@@ -12,6 +12,8 @@
 	let sessionStatus = $state('idle');
 	let feedStatus = $state('connecting');
 	let busy = $state(false);
+	// feedStatus is driven by the TrafficFeed's real HLS lifecycle (bound below),
+	// not by start/stop — the stream is live regardless of whether analysis runs.
 	let lastUpdate = $state(null);
 	let entries = $state([]);
 	let chatMessages = $state([]);
@@ -160,7 +162,6 @@
 		if (running) return;
 		running = true;
 		sessionStatus = 'active';
-		feedStatus = 'live';
 
 		captureAndAnalyze();
 		intervalId = setInterval(captureAndAnalyze, 8000);
@@ -173,7 +174,6 @@
 		}
 		running = false;
 		sessionStatus = 'idle';
-		feedStatus = 'disconnected';
 		busy = false;
 	}
 
@@ -213,7 +213,7 @@
 	</Menubar>
 
 	<main class="grid grid-cols-[1fr_1fr] grid-rows-[auto_1fr] gap-4 overflow-hidden p-4">
-		<TrafficFeed bind:videoRef status={feedStatus} class="max-h-[360px]" />
+		<TrafficFeed bind:videoRef bind:status={feedStatus} class="max-h-[360px]" />
 
 		<ChatPanel
 			bind:messages={chatMessages}

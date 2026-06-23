@@ -6,7 +6,12 @@
 
 	const HLS_URL = 'https://wzmedia.dot.ca.gov/D4/N101_at_Spencer_Av.stream/playlist.m3u8';
 
-	let { videoRef = $bindable(null), status = 'disconnected', class: className, ...restProps } = $props();
+	let {
+		videoRef = $bindable(null),
+		status = $bindable('connecting'),
+		class: className,
+		...restProps
+	} = $props();
 
 	let hlsInstance = $state(null);
 
@@ -17,8 +22,21 @@
 		error: 'bg-atai-critical text-black/70'
 	};
 
+	// Reflect the real stream lifecycle: connecting → live (on first playback)
+	// → error. Independent of whether analysis is running.
 	$effect(() => {
 		if (!videoRef) return;
+
+		status = 'connecting';
+
+		const onPlaying = () => {
+			status = 'live';
+		};
+		const onError = () => {
+			status = 'error';
+		};
+		videoRef.addEventListener('playing', onPlaying);
+		videoRef.addEventListener('error', onError);
 
 		async function initHls() {
 			const Hls = (await import('hls.js')).default;
@@ -30,20 +48,29 @@
 				});
 				hls.loadSource(HLS_URL);
 				hls.attachMedia(videoRef);
+				// Autoplay can stall silently — kick playback explicitly once the
+				// manifest is ready (the element is muted, so this is allowed).
+				hls.on(Hls.Events.MANIFEST_PARSED, () => {
+					videoRef?.play?.().catch(() => {});
+				});
 				hls.on(Hls.Events.ERROR, (_, data) => {
 					if (data.fatal) {
 						console.error('HLS fatal error:', data);
+						status = 'error';
 					}
 				});
 				hlsInstance = hls;
 			} else if (videoRef.canPlayType('application/vnd.apple.mpegurl')) {
 				videoRef.src = HLS_URL;
+				videoRef.play?.().catch(() => {});
 			}
 		}
 
 		initHls();
 
 		return () => {
+			videoRef?.removeEventListener('playing', onPlaying);
+			videoRef?.removeEventListener('error', onError);
 			if (hlsInstance) {
 				hlsInstance.destroy();
 				hlsInstance = null;
