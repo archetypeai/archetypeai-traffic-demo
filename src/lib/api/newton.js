@@ -1,14 +1,7 @@
-export async function startSession() {
-	const res = await fetch('/api/session', { method: 'POST' });
-	if (!res.ok) {
-		const err = await res.json().catch(() => ({}));
-		throw new Error(err.error || 'Failed to create session');
-	}
-	return res.json();
-}
-
-export async function analyze(sessionId, rawBase64, query) {
-	const body = { sessionId, frame: rawBase64 };
+// Stateless analysis against Newton C 2.6 via /query — no session lifecycle.
+// Each call is one self-contained request carrying the captured frame.
+export async function analyze(rawBase64, query) {
+	const body = { frame: rawBase64 };
 	if (query) body.query = query;
 
 	const res = await fetch('/api/analyze', {
@@ -21,12 +14,4 @@ export async function analyze(sessionId, rawBase64, query) {
 		throw new Error(err.error || 'Analysis failed');
 	}
 	return res.json();
-}
-
-export async function endSession(sessionId) {
-	await fetch('/api/session', {
-		method: 'DELETE',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ sessionId })
-	});
 }

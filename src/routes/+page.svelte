@@ -5,10 +5,10 @@
 	import TrafficFeed from '$lib/components/ui/custom/traffic-feed.svelte';
 	import AnalysisLog from '$lib/components/ui/custom/analysis-log.svelte';
 	import ChatPanel from '$lib/components/ui/custom/chat-panel.svelte';
-	import { startSession, analyze, endSession } from '$lib/api/newton.js';
+	import { analyze } from '$lib/api/newton.js';
 
 	let videoRef = $state(null);
-	let sessionId = $state(null);
+	let running = $state(false);
 	let sessionStatus = $state('idle');
 	let feedStatus = $state('connecting');
 	let busy = $state(false);
@@ -57,7 +57,7 @@
 	}
 
 	async function captureAndAnalyze() {
-		if (busy || !sessionId) return;
+		if (busy || !running) return;
 
 		const frame = captureFrame();
 		if (!frame) return;
@@ -65,7 +65,7 @@
 		busy = true;
 
 		try {
-			const result = await analyze(sessionId, frame);
+			const result = await analyze(frame);
 			const text = result.analysis;
 			const status = inferStatus(text);
 
@@ -83,7 +83,7 @@
 	}
 
 	async function handleChatSend(text) {
-		if (!sessionId) return;
+		if (!running) return;
 
 		chatMessages = [
 			...chatMessages,
@@ -112,7 +112,7 @@
 		busy = true;
 
 		try {
-			const result = await analyze(sessionId, frame, text);
+			const result = await analyze(frame, text);
 			chatMessages = [
 				...chatMessages,
 				{
@@ -138,37 +138,22 @@
 		}
 	}
 
-	async function handleStart() {
-		if (sessionId) return;
-		sessionStatus = 'connecting';
+	function handleStart() {
+		if (running) return;
+		running = true;
+		sessionStatus = 'active';
+		feedStatus = 'live';
 
-		try {
-			const result = await startSession();
-			sessionId = result.sessionId;
-			sessionStatus = 'active';
-			feedStatus = 'live';
-
-			captureAndAnalyze();
-			intervalId = setInterval(captureAndAnalyze, 8000);
-		} catch (err) {
-			console.error('Session failed:', err);
-			sessionStatus = 'error';
-		}
+		captureAndAnalyze();
+		intervalId = setInterval(captureAndAnalyze, 8000);
 	}
 
-	async function handleStop() {
+	function handleStop() {
 		if (intervalId) {
 			clearInterval(intervalId);
 			intervalId = null;
 		}
-		if (sessionId) {
-			try {
-				await endSession(sessionId);
-			} catch {
-				// ignore cleanup errors
-			}
-			sessionId = null;
-		}
+		running = false;
 		sessionStatus = 'idle';
 		feedStatus = 'disconnected';
 		busy = false;
@@ -201,7 +186,7 @@
 					<span>{formatTime(lastUpdate)}</span>
 				</div>
 			{/if}
-			{#if !sessionId}
+			{#if !running}
 				<Button variant="default" size="sm" onclick={handleStart}>Start Analysis</Button>
 			{:else}
 				<Button variant="outline" size="sm" onclick={handleStop}>Stop</Button>
@@ -215,7 +200,7 @@
 		<ChatPanel
 			bind:messages={chatMessages}
 			loading={chatLoading}
-			disabled={!sessionId}
+			disabled={!running}
 			onsend={handleChatSend}
 			class="row-span-2 max-h-full"
 		/>
