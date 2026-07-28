@@ -13,7 +13,8 @@
 		'manifestLoadTimeOut',
 		'manifestParsingError'
 	]);
-	const INITIAL_RETRY_DELAY = 2000;
+	const INITIAL_RETRY_DELAY = 1000;
+	const MAX_RETRY_DELAY = 30000;
 
 	let {
 		videoRef = $bindable(null),
@@ -77,9 +78,11 @@
 						// reload — so re-issue loadSource instead, backing off so an
 						// extended outage doesn't turn into a tight retry loop.
 						if (MANIFEST_ERRORS.has(data.details)) {
-							retryDelay = Math.min(retryDelay * 2, 30000);
+							retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
 							clearTimeout(retryTimer);
-							retryTimer = setTimeout(() => hls.loadSource(HLS_URL), retryDelay);
+							retryTimer = setTimeout(() => {
+								if (hlsInstance === hls) hls.loadSource(HLS_URL);
+							}, retryDelay);
 						} else {
 							hls.startLoad();
 						}
@@ -89,7 +92,11 @@
 					} else {
 						console.error('HLS fatal error:', data);
 						status = 'error';
+						// Drop any pending manifest retry — it would call loadSource on a
+						// destroyed instance.
+						clearTimeout(retryTimer);
 						hls.destroy();
+						hlsInstance = null;
 					}
 				});
 				hlsInstance = hls;
