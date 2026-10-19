@@ -8,7 +8,9 @@ Analyzes the **US-101 at Spencer Avenue** camera (Sausalito, CA — Golden Gate 
 
 ## Features
 
-- **Live HLS stream** from Caltrans CCTV (720x480, US-101 northbound)
+- **Live HLS stream** from Caltrans CCTV (1280x720, US-101 northbound) — the publisher
+  drops in and out, so the player retries a failed manifest with exponential backoff
+  rather than leaving the feed blank
 - **Automatic analysis** — Newton analyzes a short video clip every 8 seconds, reporting on traffic flow, vehicle density, incidents, and visibility, and whether traffic is building, clearing, or steady
 - **Interactive chat** — ask Newton questions about what it sees on the camera
 - **Analysis history** — scrolling log of observations with severity-coded labels (Normal, Congestion, Incident)

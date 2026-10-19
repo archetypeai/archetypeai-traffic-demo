@@ -6,6 +6,16 @@
 
 	const HLS_URL = 'https://wzmedia.dot.ca.gov/D4/N101_at_Spencer_Av.stream/playlist.m3u8';
 
+	// Fatal network errors at the manifest level need loadSource, not startLoad —
+	// there is no parsed level to resume from.
+	const MANIFEST_ERRORS = new Set([
+		'manifestLoadError',
+		'manifestLoadTimeOut',
+		'manifestParsingError'
+	]);
+	const INITIAL_RETRY_DELAY = 1000;
+	const MAX_RETRY_DELAY = 30000;
+
 	let {
 		videoRef = $bindable(null),
 		status = $bindable('connecting'),
@@ -29,9 +39,13 @@
 
 		status = 'connecting';
 
+		let retryTimer = null;
+		let retryDelay = INITIAL_RETRY_DELAY;
+
 		// 'playing' is the source of truth for "live" — it also re-fires after a
 		// recovered error, flipping the badge back from connecting to live.
 		const onPlaying = () => {
+			retryDelay = INITIAL_RETRY_DELAY; // recovered — reset the backoff
 			status = 'live';
 		};
 		videoRef.addEventListener('playing', onPlaying);
@@ -58,14 +72,31 @@
 					if (!data.fatal) return;
 					if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
 						status = 'connecting';
-						hls.startLoad();
+						// The Caltrans publisher drops in and out, so playlist.m3u8 serves
+						// intermittent 404s. A manifest-level failure leaves no levels for
+						// startLoad() to resume — the feed would sit blank until a manual
+						// reload — so re-issue loadSource instead, backing off so an
+						// extended outage doesn't turn into a tight retry loop.
+						if (MANIFEST_ERRORS.has(data.details)) {
+							retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
+							clearTimeout(retryTimer);
+							retryTimer = setTimeout(() => {
+								if (hlsInstance === hls) hls.loadSource(HLS_URL);
+							}, retryDelay);
+						} else {
+							hls.startLoad();
+						}
 					} else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
 						status = 'connecting';
 						hls.recoverMediaError();
 					} else {
 						console.error('HLS fatal error:', data);
 						status = 'error';
+						// Drop any pending manifest retry — it would call loadSource on a
+						// destroyed instance.
+						clearTimeout(retryTimer);
 						hls.destroy();
+						hlsInstance = null;
 					}
 				});
 				hlsInstance = hls;
@@ -79,6 +110,7 @@
 
 		return () => {
 			videoRef?.removeEventListener('playing', onPlaying);
+			clearTimeout(retryTimer);
 			if (hlsInstance) {
 				hlsInstance.destroy();
 				hlsInstance = null;
@@ -94,7 +126,7 @@
 			autoplay
 			muted
 			playsinline
-			class="bg-muted aspect-[3/2] w-full object-contain"
+			class="aspect-[3/2] w-full bg-muted object-contain"
 		></video>
 
 		<div class="absolute top-2 left-2 flex items-center gap-2">
