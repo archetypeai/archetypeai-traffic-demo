@@ -18,7 +18,7 @@ Analyzes the **US-101 at Spencer Avenue** camera (Sausalito, CA — Golden Gate 
 
 - **SvelteKit** with Svelte 5 runes
 - **Archetype AI Design System** — semantic tokens, component primitives, composite patterns
-- **Newton API** — C 2.6 fusion model via stateless `/query` (short video clips: base64 JPEG frames + `query_metadata`)
+- **Newton API** — C 2.6 fusion model via stateless `/api/lens/query` (short video clips: base64 JPEG frames + `query_metadata`)
 - **hls.js** — HLS stream playback in the browser
 - **Tailwind v4** — styling with semantic design tokens
 
@@ -32,7 +32,7 @@ Create a `.env` file:
 
 ```
 ATAI_API_KEY=your_api_key_here
-ATAI_API_ENDPOINT=https://api.u1.archetypeai.app/
+ATAI_API_ENDPOINT=https://platform.u1.archetypeai.app
 ```
 
 ## Development
@@ -50,7 +50,7 @@ src/
 ├── routes/
 │   ├── +page.svelte              # Dashboard orchestrator
 │   └── api/
-│       └── analyze/+server.js    # Stateless /query proxy (video-clip analysis)
+│       └── analyze/+server.js    # Stateless /api/lens/query proxy (video-clip analysis)
 ├── lib/
 │   ├── server/newton.js          # Server-side Newton API client
 │   ├── api/newton.js             # Client-side fetch wrappers
@@ -67,7 +67,7 @@ src/
 ## How It Works
 
 1. The HLS stream plays via hls.js in a `<video>` element (self-healing: recovers from transient stream errors)
-2. **Start Analysis** begins the polling loop — no session to create; each call is a stateless `/query`
-3. Every 8 seconds, a short window of frames (4 @ ~1.3fps) is captured via canvas, encoded as base64 JPEG, and sent to Newton's `/query` endpoint as one video clip (`multi_image: false` + `query_metadata`)
+2. **Start Analysis** begins the polling loop — no session to create; each call is a stateless `/api/lens/query`
+3. Every 8 seconds, a short window of frames (4 @ ~1.3fps) is captured via canvas, encoded as base64 JPEG, and sent to Newton's `/api/lens/query` endpoint as one video clip (`multi_image: false` + `query_metadata`)
 4. Newton's C 2.6 fusion model returns a traffic analysis — reasoning over motion across the clip — which is displayed in the Analysis panel with auto-inferred severity
 5. Users can ask questions in the Chat panel — each question captures the current clip and sends it with the custom query to Newton

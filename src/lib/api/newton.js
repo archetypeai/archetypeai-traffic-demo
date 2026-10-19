@@ -1,4 +1,4 @@
-// Stateless analysis against Newton C 2.6 via /query — no session lifecycle.
+// Stateless analysis against Newton C 2.6 via /api/lens/query — no session lifecycle.
 // Each call sends a short window of frames as one video clip; `rawFps` is the
 // sampling rate the frames were captured at (used to build query_metadata).
 export async function analyze(frames, query, rawFps) {
