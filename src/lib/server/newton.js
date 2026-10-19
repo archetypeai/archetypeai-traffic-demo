@@ -1,12 +1,13 @@
 import { ATAI_API_KEY, ATAI_API_ENDPOINT } from '$env/static/private';
 
-const API_VERSION = 'v0.5';
+// Every API surface lives under one versionless /api prefix.
+const API_PREFIX = 'api';
 // C 2.6 fusion checkpoint — the full `Newton::` prefix AND the `_fp8_` segment
 // are required; omitting either returns 400 invalid_model_version.
 const MODEL_VERSION = 'Newton::c2_6_8b_fp8_260424d7a55d5e';
 
 function apiUrl(path) {
-	return `${ATAI_API_ENDPOINT.replace(/\/$/, '')}/${API_VERSION}${path}`;
+	return `${ATAI_API_ENDPOINT.replace(/\/$/, '')}/${API_PREFIX}${path}`;
 }
 
 // Canonical extraction path is response.response[0]; fall back across the
@@ -24,7 +25,7 @@ function extractText(payload) {
 	return JSON.stringify(payload);
 }
 
-// Single stateless /query call against the C 2.6 fusion model. The captured
+// Single stateless /api/lens/query call against the C 2.6 fusion model. The captured
 // frames are sent as one short video clip: each frame is a `data.base64_img`
 // event, `multi_image: false` marks them as frames (not independent images),
 // and the `query_metadata` triple is required for the frame-list video path —
@@ -39,7 +40,7 @@ export async function analyzeFrames(frames, instruction, query, rawFps = 1, time
 			type: 'data.base64_img',
 			event_data: { contents }
 		}));
-		const res = await fetch(apiUrl('/query'), {
+		const res = await fetch(apiUrl('/lens/query'), {
 			method: 'POST',
 			headers: {
 				Authorization: `Bearer ${ATAI_API_KEY}`,
@@ -63,7 +64,7 @@ export async function analyzeFrames(frames, instruction, query, rawFps = 1, time
 		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
-			throw new Error(`POST /query failed: ${res.status} - ${JSON.stringify(err)}`);
+			throw new Error(`POST /api/lens/query failed: ${res.status} - ${JSON.stringify(err)}`);
 		}
 		return extractText(await res.json());
 	} finally {
