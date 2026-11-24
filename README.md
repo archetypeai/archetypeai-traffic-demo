@@ -73,3 +73,14 @@ src/
 3. Every 8 seconds, a short window of frames (4 @ ~1.3fps) is captured via canvas, encoded as base64 JPEG, and sent to Newton's `/api/lens/query` endpoint as one video clip (`multi_image: false` + `query_metadata`)
 4. Newton's C 2.6 fusion model returns a traffic analysis — reasoning over motion across the clip — which is displayed in the Analysis panel with auto-inferred severity
 5. Users can ask questions in the Chat panel — each question captures the current clip and sends it with the custom query to Newton
+
+## Licence
+
+The code is under the [Apache License 2.0](LICENSE). The repo holds no traffic data:
+the app streams the Caltrans CCTV feed live from Caltrans. The screenshot in
+`static/demo.png` shows a frame from that Caltrans camera, which isn't covered by the
+Apache licence.
+
+The PP Neue Montreal fonts in `static/fonts/` are copyright Pangram Pangram Foundry and
+aren't covered by the Apache licence either. The files in `.claude/` carry their own MIT
+licence ([`.claude/LICENSE`](.claude/LICENSE)).
